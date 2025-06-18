@@ -864,18 +864,12 @@
                 pauseBtn.disabled = false;
                 showFolderBtn.disabled = true;
                 
-                let body = `url=${encodeURIComponent(videoUrl.value)}&quality=${qualitySelect.value}&mode=${formatSelect.value}&platform=${platformSelect.value}`;
-                
-                if (!isMobileDevice()) {
-                    body += `&download_folder=${encodeURIComponent(downloadFolder.value)}`;
-                }
-
                 fetch('/start_download', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/x-www-form-urlencoded',
                     },
-                    body: body
+                    body: `url=${encodeURIComponent(videoUrl.value)}&quality=${qualitySelect.value}&mode=${formatSelect.value}&download_folder=${encodeURIComponent(downloadFolder.value)}&platform=${platformSelect.value}`
                 })
                 .then(response => response.json())
                 .then(data => {
@@ -945,7 +939,7 @@
             function checkDownloadStatus() {
                 fetch('/get_status')
                 .then(response => response.json())
-                .then data => {
+                .then(data => {
                     progressBar.style.width = `${data.progress}%`;
                     progressBar.textContent = `${Math.round(data.progress)}%`;
                     
