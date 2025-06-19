@@ -169,9 +169,16 @@ def start_download():
     if not url:
         return jsonify(success=False, message='URL is required')
 
-    if platform != 'other' and platform.lower() not in url.lower():
-        return jsonify(success=False, message=f"The URL must be from {platform}.")
-    
+    if platform != 'other':
+        try:
+            with yt_dlp.YoutubeDL({'quiet': True, 'extract_flat': 'in_playlist', 'force_generic_extractor': True}) as ydl:
+                info = ydl.extract_info(url, download=False)
+                extractor = info.get('extractor_key', '').lower()
+                if platform.lower() not in extractor:
+                    return jsonify(success=False, message=f"The URL is not a valid {platform} link.")
+        except Exception as e:
+            return jsonify(success=False, message=f"Error verifying URL: {str(e)}")
+
     if download_status['is_downloading']:
         return jsonify(success=False, message='Another download is already in progress')
     
