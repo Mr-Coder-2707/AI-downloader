@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, jsonify, send_from_directory
+from flask import Flask, render_template, request, jsonify, send_from_directory, Response
 import yt_dlp
 import os
 import threading
@@ -7,6 +7,7 @@ from werkzeug.utils import secure_filename
 import sys
 import subprocess
 from tkinter import Tk, filedialog
+import requests # Add this import
 
 app = Flask(__name__)
 
@@ -29,6 +30,14 @@ download_status = {
 # --- Helper Functions ---
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in app.config['ALLOWED_EXTENSIONS']
+
+def secure_path(path):
+    # Normalize the path to resolve any ".." components
+    normalized_path = os.path.normpath(path)
+    # Check if the path is within the intended download directory
+    if os.path.commonprefix((normalized_path, os.path.abspath(app.config['DOWNLOAD_FOLDER']))) != os.path.abspath(app.config['DOWNLOAD_FOLDER']):
+        raise ValueError("Invalid download path specified.")
+    return normalized_path
 
 def create_download_folder():
     if not os.path.exists(app.config['DOWNLOAD_FOLDER']):
@@ -89,9 +98,17 @@ def download_video(url, quality, mode, download_folder, platform=None):
         
         processed_quality = quality[:-1] if quality.endswith('p') else quality
         
+        # Use the title from download_status if available, otherwise fallback to yt-dlp's title
+        if download_status.get('title'):
+            # Sanitize the title to be used as a filename
+            sanitized_title = secure_filename(download_status['title'])
+            outtmpl_path = os.path.join(download_folder, f'{sanitized_title}.%(ext)s')
+        else:
+            outtmpl_path = os.path.join(download_folder, '%(title)s.%(ext)s')
+
         ydl_opts_base = {
             # 'format_sort': ['res:'+processed_quality, 'ext:mp4:m4a'],  # Not a valid yt-dlp option
-            'outtmpl': os.path.join(download_folder, '%(title)s.%(ext)s'),
+            'outtmpl': outtmpl_path,
             'noplaylist': True,
             'progress_hooks': [progress_hook],
             'postprocessors': [],
@@ -104,12 +121,20 @@ def download_video(url, quality, mode, download_folder, platform=None):
         if mode == "Audio":
             ydl_opts = ydl_opts_base.copy()
             ydl_opts['format'] = 'bestaudio/best'
+            ydl_opts['writethumbnail'] = True
             ydl_opts['postprocessors'].append({
                 'key': 'FFmpegExtractAudio',
                 'preferredcodec': 'mp3',
                 'preferredquality': '192',
             })
-            ydl_opts['outtmpl'] = os.path.join(download_folder, '%(title)s.mp3')
+            ydl_opts['postprocessors'].append({
+                'key': 'EmbedThumbnail',
+            })
+            if download_status.get('title'):
+                sanitized_title = secure_filename(download_status['title'])
+                ydl_opts['outtmpl'] = os.path.join(download_folder, f'{sanitized_title}.mp3')
+            else:
+                ydl_opts['outtmpl'] = os.path.join(download_folder, '%(title)s.mp3')
         else:  # Video
             ydl_opts = ydl_opts_base.copy()
 
@@ -132,6 +157,27 @@ def download_video(url, quality, mode, download_folder, platform=None):
     finally:
         download_status['is_downloading'] = False
 
+@app.route('/download_thumbnail_proxy')
+def download_thumbnail_proxy():
+    thumbnail_url = request.args.get('url')
+    if not thumbnail_url:
+        return "Missing URL parameter", 400
+
+    try:
+        response = requests.get(thumbnail_url, stream=True)
+        response.raise_for_status() # Raise an exception for bad status codes
+
+        # Get the content type from the original response
+        content_type = response.headers.get('content-type', 'image/jpeg')
+
+        # Create a streaming response to send to the client
+        return Response(response.iter_content(chunk_size=8192),
+                        content_type=content_type,
+                        headers={"Content-Disposition": "attachment; filename=thumbnail.jpg"})
+
+    except requests.exceptions.RequestException as e:
+        return str(e), 500
+
 # --- Routes ---
 @app.route('/')
 def index():
@@ -145,16 +191,17 @@ def index():
 def fetch_title():
     url = request.form.get('url')
     if not url:
-        return jsonify({'success': False, 'title': 'Please enter a video URL'})
+        return jsonify({'success': False, 'title': 'Please enter a video URL', 'thumbnail': None})
     
     try:
         with yt_dlp.YoutubeDL({'quiet': True, 'extract_flat': 'in_playlist', 'force_generic_extractor': True}) as ydl:
             info = ydl.extract_info(url, download=False)
             title = info.get('title', 'No title found')
+            thumbnail = info.get('thumbnail', None)
             download_status['title'] = title
-            return jsonify({'success': True, 'title': title})
+            return jsonify({'success': True, 'title': title, 'thumbnail': thumbnail})
     except Exception as e:
-        return jsonify({'success': False, 'title': f'Error fetching title: {str(e)}'})
+        return jsonify({'success': False, 'title': f'Error fetching title: {str(e)}', 'thumbnail': None})
 
 @app.route('/start_download', methods=['POST'])
 def start_download():
@@ -168,6 +215,11 @@ def start_download():
     
     if not url:
         return jsonify(success=False, message='URL is required')
+
+    try:
+        download_folder = secure_path(download_folder)
+    except ValueError as e:
+        return jsonify(success=False, message=str(e))
 
     if platform != 'other':
         try:
@@ -189,6 +241,33 @@ def start_download():
     download_status['download_thread'].start()
     
     return jsonify(success=True)
+
+
+@app.route('/download_thumbnail', methods=['POST'])
+def download_thumbnail():
+    url = request.form.get('url')
+    download_folder = request.form.get('download_folder', app.config['DOWNLOAD_FOLDER'])
+
+    if not url:
+        return jsonify(success=False, message='URL is required')
+
+    try:
+        ydl_opts = {
+            'writethumbnail': True,
+            'skip_download': True,
+            'outtmpl': os.path.join(download_folder, '%(title)s.%(ext)s'),
+            'quiet': True,
+            'postprocessors': [{
+                'key': 'FFmpegThumbnailsConvertor',
+                'format': 'jpg',
+            }],
+        }
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            ydl.extract_info(url, download=True)
+        
+        return jsonify(success=True, message='Thumbnail downloaded successfully!')
+    except Exception as e:
+        return jsonify(success=False, message=f'Error downloading thumbnail: {str(e)}')
 
 
 @app.route('/toggle_pause', methods=['POST'])

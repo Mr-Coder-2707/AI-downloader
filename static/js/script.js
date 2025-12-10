@@ -1,5 +1,7 @@
 document.addEventListener('DOMContentLoaded', function() {
     const videoUrl = document.getElementById('videoUrl');
+    const clearUrlBtn = document.getElementById('clearUrlBtn');
+    const urlInputContainer = document.getElementById('url-input-container');
     const fetchTitleBtn = document.getElementById('fetchTitleBtn');
     const titleDisplay = document.getElementById('titleDisplay');
     const platformSelect = document.getElementById('platformSelect');
@@ -14,38 +16,96 @@ document.addEventListener('DOMContentLoaded', function() {
     const statusMessage = document.getElementById('statusMessage');
     const themeToggle = document.getElementById('themeToggle');
     const body = document.body;
-    
+    const thumbnailPreview = document.getElementById('thumbnailPreview');
+    const downloadThumbnailBtn = document.getElementById('downloadThumbnailBtn');
+    const videoInfo = document.getElementById('video-info');
+    const progressContainer = document.querySelector('.progress');
+    const downloadHistory = document.getElementById('downloadHistory');
+
     let currentFile = null;
-    let isDarkMode = false;
+    let currentThumbnailUrl = null;
 
-    // Function to check if the device is mobile
-    function isMobileDevice() {
-        const userAgent = navigator.userAgent || navigator.vendor || window.opera;
-        // Checks for specific mobile user agents
-        return /android|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(userAgent.toLowerCase());
-    }
-
-    // Hide folder selection on mobile devices
-    if (isMobileDevice()) {
-        const downloadFolderContainer = document.getElementById('downloadFolderContainer');
-        if (downloadFolderContainer) {
-            downloadFolderContainer.style.display = 'none';
-        }
-    }
-    
-    // Theme toggle
-    themeToggle.addEventListener('click', function() {
-        isDarkMode = !isDarkMode;
-        if (isDarkMode) {
+    // --- Theme Management ---
+    function setTheme(theme) {
+        if (theme === 'dark') {
             body.classList.add('dark-mode');
-            themeToggle.innerHTML = '<i class="bi bi-sun-fill"></i>';
+            themeToggle.innerHTML = `<i class="bi bi-sun-fill"></i>`;
         } else {
             body.classList.remove('dark-mode');
-            themeToggle.innerHTML = '<i class="bi bi-moon-fill"></i>';
+            themeToggle.innerHTML = `<i class="bi bi-moon-fill"></i>`;
         }
+    }
+
+    const savedTheme = localStorage.getItem('theme');
+    if (savedTheme) {
+        setTheme(savedTheme);
+    }
+
+    themeToggle.addEventListener('click', () => {
+        const newTheme = body.classList.contains('dark-mode') ? 'light' : 'dark';
+        localStorage.setItem('theme', newTheme);
+        setTheme(newTheme);
     });
-    
-    // Fetch title
+
+    // --- URL Input Management ---
+    videoUrl.addEventListener('input', function() {
+        clearUrlBtn.style.display = videoUrl.value ? 'block' : 'none';
+    });
+
+    clearUrlBtn.addEventListener('click', function() {
+        videoUrl.value = '';
+        clearUrlBtn.style.display = 'none';
+        hideVideoInfo();
+    });
+
+    // --- Drag and Drop ---
+    urlInputContainer.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        urlInputContainer.classList.add('drag-over');
+    });
+
+    urlInputContainer.addEventListener('dragleave', () => {
+        urlInputContainer.classList.remove('drag-over');
+    });
+
+    urlInputContainer.addEventListener('drop', (e) => {
+        e.preventDefault();
+        urlInputContainer.classList.remove('drag-over');
+        const text = e.dataTransfer.getData('text/plain');
+        videoUrl.value = text;
+        clearUrlBtn.style.display = 'block';
+        fetchTitleBtn.click(); // Automatically fetch title on drop
+    });
+
+    // --- UI Updates ---
+    function updateStatus(message, type = 'info') {
+        statusMessage.textContent = message;
+        // You can add classes for different message types (e.g., text-danger for errors)
+    }
+
+    function showVideoInfo(title, thumbnailUrl) {
+        titleDisplay.textContent = title;
+        thumbnailPreview.src = thumbnailUrl;
+        videoInfo.style.display = 'block';
+        currentThumbnailUrl = thumbnailUrl;
+    }
+
+    function hideVideoInfo() {
+        videoInfo.style.display = 'none';
+    }
+
+    function setProgress(percentage) {
+        progressContainer.style.display = 'block';
+        progressBar.style.width = `${percentage}%`;
+        progressBar.textContent = `${Math.round(percentage)}%`;
+    }
+
+    function hideProgress() {
+        progressContainer.style.display = 'none';
+        setProgress(0);
+    }
+
+    // --- API Calls ---
     fetchTitleBtn.addEventListener('click', function() {
         if (!videoUrl.value.trim()) {
             updateStatus('Please enter a video URL', 'error');
@@ -53,7 +113,8 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         
         fetchTitleBtn.disabled = true;
-        fetchTitleBtn.innerHTML = '<i class="bi bi-hourglass-split"></i> Fetching...';
+        fetchTitleBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Fetching...';
+        hideVideoInfo();
         
         fetch('/fetch_title', {
             method: 'POST',
@@ -64,26 +125,40 @@ document.addEventListener('DOMContentLoaded', function() {
         })
         .then(response => response.json())
         .then(data => {
-            if (data.success) {
-                titleDisplay.innerHTML = `<i class="bi bi-camera-reels"></i> ${data.title}`;
+            if (data.success && data.thumbnail) {
+                showVideoInfo(data.title, data.thumbnail);
                 updateStatus('Title fetched successfully', 'success');
             } else {
-                titleDisplay.innerHTML = `<i class="bi bi-exclamation-triangle"></i> ${data.title}`;
-                updateStatus('Error fetching title', 'error');
+                updateStatus(data.title || 'Error fetching title', 'error');
             }
         })
         .catch(error => {
-            titleDisplay.innerHTML = '<i class="bi bi-exclamation-triangle"></i> Error fetching title';
             updateStatus('Error fetching title', 'error');
             console.error('Error:', error);
         })
         .finally(() => {
             fetchTitleBtn.disabled = false;
-            fetchTitleBtn.innerHTML = '<i class="bi bi-search"></i> Fetch Title';
+            fetchTitleBtn.innerHTML = '<i class="fas fa-search me-1"></i> Fetch';
         });
     });
-    
-    // Browse folder
+
+    downloadThumbnailBtn.addEventListener('click', function() {
+        if (!currentThumbnailUrl) {
+            updateStatus('No thumbnail to download', 'error');
+            return;
+        }
+
+        // Use the server-side proxy to download the thumbnail
+        const downloadUrl = `/download_thumbnail_proxy?url=${encodeURIComponent(currentThumbnailUrl)}`;
+        const a = document.createElement('a');
+        a.href = downloadUrl;
+        a.download = 'thumbnail.jpg'; // The filename for the user
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        updateStatus('Thumbnail download started', 'success');
+    });
+
     browseFolderBtn.addEventListener('click', function() {
         fetch('/browse_folder')
         .then(response => response.json())
@@ -97,8 +172,7 @@ document.addEventListener('DOMContentLoaded', function() {
             alert('Could not open folder browser.');
         });
     });
-    
-    // Start download
+
     downloadBtn.addEventListener('click', function() {
         if (!videoUrl.value.trim()) {
             updateStatus('Please enter a video URL', 'error');
@@ -108,6 +182,7 @@ document.addEventListener('DOMContentLoaded', function() {
         downloadBtn.disabled = true;
         pauseBtn.disabled = false;
         showFolderBtn.disabled = true;
+        hideProgress();
         
         fetch('/start_download', {
             method: 'POST',
@@ -134,15 +209,9 @@ document.addEventListener('DOMContentLoaded', function() {
             pauseBtn.disabled = true;
         });
     });
-    
-    // Pause/resume download
+
     pauseBtn.addEventListener('click', function() {
-        fetch('/toggle_pause', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/x-www-form-urlencoded',
-            }
-        })
+        fetch('/toggle_pause', { method: 'POST' })
         .then(response => response.json())
         .then(data => {
             if (data.success) {
@@ -154,13 +223,9 @@ document.addEventListener('DOMContentLoaded', function() {
                     updateStatus('Download resumed', 'info');
                 }
             }
-        })
-        .catch(error => {
-            console.error('Error:', error);
         });
     });
-    
-    // Show in folder
+
     showFolderBtn.addEventListener('click', function() {
         fetch('/open_folder', {
             method: 'POST',
@@ -174,43 +239,37 @@ document.addEventListener('DOMContentLoaded', function() {
             if (!data.success) {
                 alert(data.message);
             }
-        })
-        .catch(error => {
-            console.error('Error:', error);
         });
     });
-    
-    // Check download status
+
     function checkDownloadStatus() {
         fetch('/get_status')
         .then(response => response.json())
         .then(data => {
-            progressBar.style.width = `${data.progress}%`;
-            progressBar.textContent = `${Math.round(data.progress)}%`;
-            
-            if (data.message) {
-                updateStatus(data.message, 'info');
-            }
-            
+            setProgress(data.progress);
+            updateStatus(data.message, 'info');
+
             if (data.is_paused) {
                 pauseBtn.innerHTML = '<i class="bi bi-play-fill"></i> Resume';
             } else {
                 pauseBtn.innerHTML = '<i class="bi bi-pause-fill"></i> Pause';
             }
-            
+
             if (data.current_file) {
                 currentFile = data.current_file;
                 showFolderBtn.disabled = false;
             }
-            
+
             if (data.is_downloading) {
                 setTimeout(checkDownloadStatus, 1000);
             } else {
                 downloadBtn.disabled = false;
                 pauseBtn.disabled = true;
-                
                 if (data.progress === 100) {
                     showFolderBtn.disabled = false;
+                    updateStatus('Download complete!', 'success');
+                    addDownloadToHistory(data.title, data.current_file);
+                    setTimeout(hideProgress, 3000);
                 }
             }
         })
@@ -221,80 +280,64 @@ document.addEventListener('DOMContentLoaded', function() {
             setTimeout(checkDownloadStatus, 2000);
         });
     }
-    
-    // Update status message
-    function updateStatus(message, type = 'info') {
-        let icon = '';
-        switch(type) {
-            case 'error':
-                icon = '<i class="bi bi-exclamation-triangle"></i>';
-                break;
-            case 'success':
-                icon = '<i class="bi bi-check-circle"></i>';
-                break;
-            case 'warning':
-                icon = '<i class="bi bi-exclamation-circle"></i>';
-                break;
-            default:
-                icon = '<i class="bi bi-info-circle"></i>';
+
+    // --- Download History ---
+    function renderDownloadHistory() {
+        const history = JSON.parse(localStorage.getItem('downloadHistory')) || [];
+        downloadHistory.innerHTML = '';
+        if (history.length === 0) {
+            downloadHistory.innerHTML = '<li class="list-group-item">No downloads yet.</li>';
+            return;
         }
-        
-        statusMessage.innerHTML = `${icon} ${message}`;
+        history.forEach(item => {
+            const li = document.createElement('li');
+            li.className = 'list-group-item d-flex justify-content-between align-items-center';
+            li.innerHTML = `
+                <span>${item.title}</span>
+                <small class="text-muted">${new Date(item.date).toLocaleString()}</small>
+            `;
+            downloadHistory.appendChild(li);
+        });
     }
-    
-    // Disable quality select when audio is selected
+
+    function addDownloadToHistory(title, filename) {
+        const history = JSON.parse(localStorage.getItem('downloadHistory')) || [];
+        const newEntry = {
+            title: title || 'Untitled',
+            filename: filename,
+            date: new Date().toISOString()
+        };
+        history.unshift(newEntry); // Add to the beginning
+        if (history.length > 10) { // Keep history to a reasonable size
+            history.pop();
+        }
+        localStorage.setItem('downloadHistory', JSON.stringify(history));
+        renderDownloadHistory();
+    }
+
     formatSelect.addEventListener('change', function() {
         qualitySelect.disabled = formatSelect.value === 'Audio';
     });
-});
 
-// Theme persistence and toggle
-const themeToggle = document.getElementById('themeToggle');
-const body = document.body;
-const moonIcon = 'bi-moon-fill';
-const sunIcon = 'bi-sun-fill';
-
-// Function to set the theme
-function setTheme(theme) {
-    if (theme === 'dark') {
-        body.classList.add('dark-mode');
-        themeToggle.innerHTML = `<i class="bi ${sunIcon}"></i>`;
-    } else {
-        body.classList.remove('dark-mode');
-        themeToggle.innerHTML = `<i class="bi ${moonIcon}"></i>`;
+    // Hide folder selection on mobile devices
+    if (/Mobi|Android/i.test(navigator.userAgent)) {
+        const downloadFolderContainer = document.getElementById('downloadFolderContainer');
+        if (downloadFolderContainer) {
+            downloadFolderContainer.style.display = 'none';
+        }
     }
-}
 
-// Check for saved theme in localStorage
-const savedTheme = localStorage.getItem('theme');
-if (savedTheme) {
-    setTheme(savedTheme);
-}
-
-themeToggle.addEventListener('click', () => {
-    if (body.classList.contains('dark-mode')) {
-        localStorage.setItem('theme', 'light');
-        setTheme('light');
-    } else {
-        localStorage.setItem('theme', 'dark');
-        setTheme('dark');
-    }
+    // Initial render
+    renderDownloadHistory();
 });
 
 // Loader logic
-const startTime = Date.now();
 window.addEventListener('load', function() {
-    const loader = document.querySelector('.hourglassBackground');
-    const elapsedTime = Date.now() - startTime;
-    const minDisplayTime = 2000; // Minimum display time in milliseconds
-
-    const hideLoader = () => {
-        loader.style.display = 'none';
-    };
-
-    if (elapsedTime < minDisplayTime) {
-        setTimeout(hideLoader, minDisplayTime - elapsedTime);
-    } else {
-        hideLoader();
+    const loaderOverlay = document.getElementById('loader-overlay');
+    if (loaderOverlay) {
+        // Add a short delay before hiding to ensure animations are smooth
+        setTimeout(() => {
+            loaderOverlay.classList.add('hidden');
+        }, 200); // 200ms delay
     }
 });

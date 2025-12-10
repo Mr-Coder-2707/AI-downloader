@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>فيديو داونلودر برو+ | تجربة تحميل فائقة</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --brand-color: #2563eb;
+            --brand-color-hover: #1d4ed8;
+            --background-color: #0f172a;
+            --card-background-color: rgba(30, 41, 59, 0.7);
+            --border-color: rgba(51, 65, 85, 0.5);
+            --text-primary: #e2e8f0;
+            --text-secondary: #94a3b8;
+        }
+        html { scroll-behavior: smooth; }
+        body {
+            font-family: 'Cairo', sans-serif;
+            background-color: var(--background-color);
+            color: var(--text-primary);
+            overflow-x: hidden;
+        }
+        .main-container { position: relative; z-index: 10; }
+        .background-glow {
+            position: absolute;
+            top: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 800px;
+            height: 600px;
+            background: radial-gradient(circle, rgba(37, 99, 235, 0.15) 0%, rgba(37, 99, 235, 0) 70%);
+            z-index: 1;
+            pointer-events: none;
+        }
+        header {
+            position: fixed;
+            top: 0;
+            right: 0;
+            left: 0;
+            z-index: 50;
+            transition: background-color 0.3s ease-in-out, box-shadow 0.3s ease-in-out;
+        }
+        header.scrolled {
+            background-color: rgba(15, 23, 42, 0.8);
+            backdrop-filter: blur(10px);
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+        }
+        .card-bg {
+            background-color: var(--card-background-color);
+            backdrop-filter: blur(10px);
+            border: 1px solid var(--border-color);
+        }
+        .btn-primary {
+            background-color: var(--brand-color);
+            transition: background-color 0.3s ease, transform 0.2s ease, box-shadow 0.3s ease;
+            box-shadow: 0 4px 14px 0 rgba(37, 99, 235, 0.3);
+        }
+        .btn-primary:hover { 
+            background-color: var(--brand-color-hover); 
+            box-shadow: 0 6px 20px 0 rgba(37, 99, 235, 0.4);
+        }
+        .btn-primary:active { transform: scale(0.98); }
+        .form-container, .results-container { transition: all 0.5s ease-in-out; }
+        .results-container {
+            opacity: 0;
+            transform: translateY(30px);
+            pointer-events: none;
+            visibility: hidden;
+        }
+        .results-container.visible {
+            opacity: 1;
+            transform: translateY(0);
+            pointer-events: auto;
+            visibility: visible;
+        }
+        .form-container.hidden {
+            transform: scale(0.95);
+            opacity: 0;
+            pointer-events: none;
+            position: absolute;
+        }
+        .loader {
+            width: 24px;
+            height: 24px;
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: #fff;
+            animation: spin 1s ease-in-out infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .download-option {
+            opacity: 0;
+            transform: translateX(20px);
+            animation: slide-in 0.5s forwards ease-out;
+        }
+        @keyframes slide-in { to { opacity: 1; transform: translateX(0); } }
+        .progress-bar-container {
+            background-color: #1e293b;
+            border-radius: 8px;
+            overflow: hidden;
+            border: 1px solid #334155;
+        }
+        .progress-bar {
+            background-color: var(--brand-color);
+            height: 100%;
+            border-radius: 8px;
+            transition: width 0.3s ease-in-out;
+        }
+        .platform-icon {
+            transition: transform 0.3s ease, filter 0.3s ease;
+            filter: grayscale(80%);
+            opacity: 0.7;
+        }
+        .platform-icon:hover {
+            transform: scale(1.1);
+            filter: grayscale(0%);
+            opacity: 1;
+        }
+    </style>
+</head>
+<body class="antialiased">
+    <div class="background-glow"></div>
+    
+    <!-- Header -->
+    <header id="mainHeader" class="py-4 px-4 sm:px-6 lg:px-8">
+        <div class="container mx-auto flex justify-between items-center">
+            <h1 class="text-2xl sm:text-3xl font-bold tracking-tight text-slate-100">
+                <span class="text-blue-400">فيديو</span> داونلودر <span class="text-sm font-light text-blue-400">برو+</span>
+            </h1>
+            <a href="#features" class="text-slate-300 hover:text-white transition-colors duration-300 px-4 py-2 rounded-md hover:bg-slate-700/50">الميزات</a>
+        </div>
+    </header>
+
+    <div class="main-container min-h-screen flex flex-col pt-24">
+        <!-- Main Content -->
+        <main class="container mx-auto px-4 py-12 sm:py-20 flex-grow flex flex-col justify-center items-center text-center">
+            
+            <!-- Form Container -->
+            <div id="formContainer" class="form-container w-full max-w-3xl">
+                <h2 class="text-4xl md:text-6xl font-extrabold mb-4 leading-tight text-slate-100">تجربة تحميل الفيديوهات الأفضل.</h2>
+                <p class="text-lg md:text-xl text-slate-400 max-w-2xl mx-auto mb-10">لصق الرابط. اختيار الجودة. تحميل فوري. بكل بساطة.</p>
+                
+                <div class="w-full max-w-2xl mx-auto card-bg p-6 sm:p-8 rounded-2xl shadow-2xl">
+                    <form id="downloadForm" class="flex flex-col sm:flex-row items-center gap-4">
+                        <div class="relative w-full">
+                            <input type="url" id="videoUrl" placeholder="الصق رابط الفيديو هنا..." class="w-full p-4 pr-16 bg-slate-800 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500 transition text-lg text-right">
+                            <button type="button" id="pasteButton" class="absolute left-3 top-1/2 -translate-y-1/2 p-2 text-slate-400 hover:text-white transition-colors" title="لصق من الحافظة">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7v4m0 0v4m0-4h4m-4 0H9" /></svg>
+                            </button>
+                        </div>
+                        <button type="submit" id="submitButton" class="w-full sm:w-auto btn-primary text-white font-bold py-4 px-8 rounded-lg shadow-lg transform hover:scale-105 transition-transform duration-300 text-lg whitespace-nowrap flex items-center justify-center gap-3">
+                            <span id="buttonText">تحليل الرابط</span>
+                            <div id="loader" class="loader hidden"></div>
+                        </button>
+                    </form>
+                    <div id="statusMessage" class="mt-4 font-semibold h-6 text-center"></div>
+                </div>
+            </div>
+
+            <!-- Results Container (Initially Hidden) -->
+            <div id="resultsContainer" class="results-container w-full max-w-5xl">
+                <div class="card-bg rounded-2xl shadow-2xl p-6 sm:p-8 text-right">
+                    <div class="flex flex-col md:flex-row gap-8">
+                        <img id="videoThumbnail" src="https://placehold.co/600x400/1e293b/94a3b8?text=Video" alt="صورة الفيديو المصغرة" class="w-full md:w-2/5 lg:w-1/3 h-auto rounded-lg object-cover border-2 border-slate-600">
+                        <div class="flex-1">
+                            <h3 id="videoTitle" class="text-2xl font-bold mb-2 text-slate-100"></h3>
+                            <div id="downloadOptions" class="space-y-3">
+                                <!-- Download options will be injected here by JS -->
+                            </div>
+                            <!-- Progress Bar Section -->
+                            <div id="progressSection" class="mt-6 hidden">
+                                <div class="flex justify-between items-center mb-2">
+                                    <span id="progressMessage" class="text-sm text-slate-400"></span>
+                                    <span id="progressPercentage" class="text-sm font-bold text-slate-300">0%</span>
+                                </div>
+                                <div class="progress-bar-container h-3 w-full">
+                                    <div id="progressBar" class="progress-bar" style="width: 0%;"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="mt-8 flex gap-4 justify-center">
+                    <button id="resetButton" class="bg-slate-600 hover:bg-slate-500 text-white font-bold py-3 px-6 rounded-lg transition-colors duration-300">
+                        &larr; تحميل فيديو آخر
+                    </button>
+                    <button id="openFolderButton" class="bg-green-600 hover:bg-green-500 text-white font-bold py-3 px-6 rounded-lg transition-colors duration-300 hidden">
+                        افتح مجلد التحميلات
+                    </button>
+                </div>
+            </div>
+        </main>
+
+        <!-- Supported Platforms Section -->
+        <section id="features" class="py-20 sm:py-24">
+            <div class="container mx-auto px-4 text-center">
+                 <h2 class="text-3xl md:text-4xl font-extrabold mb-6 text-slate-100">ندعم جميع المنصات الشهيرة</h2>
+                 <p class="max-w-2xl mx-auto text-lg text-slate-400 mb-12">وأكثر... ما عليك سوى لصق أي رابط فيديو وسنتكفل بالباقي.</p>
+                <div class="flex justify-center items-center flex-wrap gap-x-8 gap-y-6 md:gap-x-12">
+                    <div class="platform-icon" title="YouTube"><svg class="w-16 h-16" fill="#ff0000" viewBox="0 0 24 24"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg></div>
+                    <div class="platform-icon" title="Facebook"><svg class="w-16 h-16" fill="#1877F2" viewBox="0 0 24 24"><path d="M22 12c0-5.523-4.477-10-10-10S2 6.477 2 12c0 4.991 3.657 9.128 8.438 9.878V14.89h-2.54V12h2.54V9.797c0-2.506 1.492-3.89 3.777-3.89 1.094 0 2.238.195 2.238.195v2.46h-1.26c-1.243 0-1.63.771-1.63 1.562V12h2.773l-.443 2.89h-2.33v7.028C18.343 21.128 22 16.991 22 12z"/></svg></div>
+                    <div class="platform-icon" title="Instagram"><svg class="w-16 h-16" fill="url(#insta-gradient)" viewBox="0 0 24 24"><defs><radialGradient id="insta-gradient" cx="0.3" cy="1" r="1"><stop offset="0%" stop-color="#FDCB52"/><stop offset="25%" stop-color="#FD8D32"/><stop offset="50%" stop-color="#F43F5E"/><stop offset="75%" stop-color="#BE185D"/><stop offset="100%" stop-color="#8B5CF6"/></radialGradient></defs><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.85s-.011 3.584-.069 4.85c-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07s-3.584-.012-4.85-.07c-3.252-.148-4.771-1.691-4.919-4.919-.058-1.265-.069-1.645-.069-4.85s.011-3.584.069-4.85c.149-3.225 1.664-4.771 4.919-4.919C8.416 2.175 8.796 2.163 12 2.163zm0 1.802c-3.116 0-3.473.01-4.69.066-2.41.11-3.518 1.2-3.628 3.628-.056 1.217-.066 1.574-.066 4.69s.01 3.473.066 4.69c.11 2.41 1.218 3.518 3.628 3.628 1.217.056 1.574.066 4.69.066s3.473-.01 4.69-.066c2.41-.11 3.518-1.2 3.628-3.628.056-1.217.066-1.574.066-4.69s-.01-3.473-.066-4.69c-.11-2.41-1.218-3.518-3.628-3.628C15.473 3.973 15.116 3.965 12 3.965zM12 8.25a3.75 3.75 0 100 7.5 3.75 3.75 0 000-7.5zm0 5.625a1.875 1.875 0 110-3.75 1.875 1.875 0 010 3.75zM17.636 7.012a1.238 1.238 0 11-2.475.001 1.238 1.238 0 012.475 0z"/></svg></div>
+                    <div class="platform-icon" title="TikTok"><svg class="w-16 h-16" fill="#fff" viewBox="0 0 24 24"><path d="M12.525.02c1.31-.02 2.61-.01 3.91-.02.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.05-2.89-.35-4.2-.97-.57-.26-1.1-.59-1.62-.93-.01 2.92.01 5.84-.02 8.75-.08 1.4-.54 2.79-1.35 3.94-1.31 1.92-3.58 3.17-5.91 3.21-2.43.03-4.83-.97-6.46-2.98-1.6-1.98-2.2-4.65-1.7-7.18.32-1.61 1.1-3.21 2.4-4.25.74-.59 1.57-.96 2.4-1.15.23-.05.46-.07.69-.07.03 2.33.01 4.66-.02 6.99-.28.15-.53.37-.74.59-.85.88-1.33 2.1-1.29 3.36.05 1.8.94 3.47 2.37 4.38 1.18.74 2.76.9 4.13.49 1.07-.33 1.92-1.04 2.47-1.97.59-1.01.8-2.24.74-3.48-.07-1.46-.52-2.86-1.34-4.06-.27-.4-.59-.76-.94-1.06-.01-3.4.01-6.8-.02-10.2z"/></svg></div>
+                    <div class="platform-icon" title="X (Twitter)"><svg class="w-16 h-16" fill="#fff" viewBox="0 0 24 24"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Footer -->
+        <footer class="border-t border-slate-800 mt-auto">
+            <div class="container mx-auto py-8 px-4 text-center text-slate-400">
+                <p>&copy; 2025 فيديو داونلودر برو+. جميع الحقوق محفوظة.</p>
+                <div class="mt-4 flex justify-center gap-x-6">
+                    <a href="#" class="hover:text-white transition-colors">سياسة الخصوصية</a>
+                    <a href="#" class="hover:text-white transition-colors">تواصل معنا</a>
+                </div>
+            </div>
+        </footer>
+    </div>
+
+    <script>
+        // --- Global State & Config ---
+        const AppState = { IDLE: 'IDLE', LOADING: 'LOADING', RESULTS: 'RESULTS', DOWNLOADING: 'DOWNLOADING', DONE: 'DONE', ERROR: 'ERROR' };
+        let currentState = AppState.IDLE;
+        let statusInterval = null;
+        let currentVideoUrl = '';
+        const DEFAULT_DOWNLOAD_FOLDER = "{{ default_folder.replace('\\', '/') }}"; // Fetched from Flask
+
+        // --- DOM Elements ---
+        const elements = {
+            mainHeader: document.getElementById('mainHeader'),
+            formContainer: document.getElementById('formContainer'),
+            resultsContainer: document.getElementById('resultsContainer'),
+            downloadForm: document.getElementById('downloadForm'),
+            videoUrlInput: document.getElementById('videoUrl'),
+            pasteButton: document.getElementById('pasteButton'),
+            submitButton: document.getElementById('submitButton'),
+            buttonText: document.getElementById('buttonText'),
+            loader: document.getElementById('loader'),
+            statusMessage: document.getElementById('statusMessage'),
+            videoThumbnail: document.getElementById('videoThumbnail'),
+            videoTitle: document.getElementById('videoTitle'),
+            downloadOptions: document.getElementById('downloadOptions'),
+            resetButton: document.getElementById('resetButton'),
+            openFolderButton: document.getElementById('openFolderButton'),
+            progressSection: document.getElementById('progressSection'),
+            progressBar: document.getElementById('progressBar'),
+            progressMessage: document.getElementById('progressMessage'),
+            progressPercentage: document.getElementById('progressPercentage'),
+        };
+
+        // --- Event Listeners ---
+        window.addEventListener('scroll', handleScroll);
+        elements.downloadForm.addEventListener('submit', handleFetchInfo);
+        elements.resetButton.addEventListener('click', resetUI);
+        elements.pasteButton.addEventListener('click', pasteFromClipboard);
+        elements.openFolderButton.addEventListener('click', () => openDownloadFolder(DEFAULT_DOWNLOAD_FOLDER));
+
+        // --- Main Logic Functions ---
+        function handleScroll() {
+            if (window.scrollY > 20) {
+                elements.mainHeader.classList.add('scrolled');
+            } else {
+                elements.mainHeader.classList.remove('scrolled');
+            }
+        }
+
+        async function handleFetchInfo(event) {
+            event.preventDefault();
+            currentVideoUrl = elements.videoUrlInput.value.trim();
+            if (!isValidUrl(currentVideoUrl)) {
+                showStatus('الرجاء إدخال رابط صالح.', true);
+                return;
+            }
+            setState(AppState.LOADING);
+
+            const formData = new FormData();
+            formData.append('url', currentVideoUrl);
+
+            try {
+                const response = await fetch('/fetch_title', { method: 'POST', body: formData });
+                const data = await response.json();
+
+                if (data.success) {
+                    setState(AppState.RESULTS, data);
+                } else {
+                    setState(AppState.ERROR, { message: data.title || 'فشل في جلب معلومات الفيديو.' });
+                }
+            } catch (error) {
+                console.error('Fetch Error:', error);
+                setState(AppState.ERROR, { message: 'خطأ في الاتصال بالخادم.' });
+            }
+        }
+
+        function startDownload(quality, mode) {
+            setState(AppState.DOWNLOADING);
+            
+            const formData = new FormData();
+            formData.append('url', currentVideoUrl);
+            formData.append('quality', quality);
+            formData.append('mode', mode);
+            formData.append('download_folder', DEFAULT_DOWNLOAD_FOLDER);
+            formData.append('platform', 'other'); // Or implement platform detection
+
+            fetch('/start_download', { method: 'POST', body: formData })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        startStatusPolling();
+                    } else {
+                        setState(AppState.ERROR, { message: data.message || 'فشل في بدء التحميل.' });
+                    }
+                })
+                .catch(error => {
+                    console.error('Download Start Error:', error);
+                    setState(AppState.ERROR, { message: 'خطأ في بدء عملية التحميل.' });
+                });
+        }
+
+        function startStatusPolling() {
+            if (statusInterval) clearInterval(statusInterval);
+            statusInterval = setInterval(async () => {
+                try {
+                    const response = await fetch('/get_status');
+                    const status = await response.json();
+                    
+                    updateProgressUI(status);
+
+                    if (!status.is_downloading && currentState === AppState.DOWNLOADING) {
+                        clearInterval(statusInterval);
+                        statusInterval = null;
+                        if (status.progress === 100) {
+                             setState(AppState.DONE, { message: "اكتمل التحميل بنجاح!" });
+                        } else {
+                             if (!status.is_paused) {
+                                setState(AppState.ERROR, { message: status.message || 'توقف التحميل لسبب غير معروف.' });
+                             }
+                        }
+                    }
+                } catch (error) {
+                    console.error('Status Poll Error:', error);
+                    clearInterval(statusInterval);
+                    setState(AppState.ERROR, { message: 'فقد الاتصال بالخادم.' });
+                }
+            }, 1000);
+        }
+
+        async function openDownloadFolder(folderPath) {
+            const formData = new FormData();
+            formData.append('folder_path', folderPath);
+            try {
+                await fetch('/open_folder', { method: 'POST', body: formData });
+            } catch (error) {
+                console.error('Open Folder Error:', error);
+            }
+        }
+        
+        // --- UI Update Functions ---
+        function setState(newState, data = null) {
+            currentState = newState;
+            elements.loader.classList.add('hidden');
+            elements.submitButton.disabled = false;
+            elements.progressSection.classList.add('hidden');
+            elements.openFolderButton.classList.add('hidden');
+
+            switch (currentState) {
+                case AppState.LOADING:
+                    elements.buttonText.textContent = 'جاري التحليل...';
+                    elements.loader.classList.remove('hidden');
+                    elements.submitButton.disabled = true;
+                    showStatus('', false);
+                    break;
+                case AppState.RESULTS:
+                    displayResults(data);
+                    elements.formContainer.classList.add('hidden');
+                    elements.resultsContainer.classList.add('visible');
+                    break;
+                case AppState.DOWNLOADING:
+                    elements.downloadOptions.querySelectorAll('button').forEach(btn => btn.disabled = true);
+                    elements.progressSection.classList.remove('hidden');
+                    break;
+                case AppState.DONE:
+                    elements.progressMessage.textContent = data.message;
+                    elements.openFolderButton.classList.remove('hidden');
+                    elements.downloadOptions.querySelectorAll('button').forEach(btn => btn.disabled = false);
+                    break;
+                case AppState.ERROR:
+                    if (elements.formContainer.classList.contains('hidden')) {
+                        updateProgressUI({ message: data.message, progress: -1 });
+                    } else {
+                        showStatus(data.message, true);
+                    }
+                    elements.buttonText.textContent = 'تحليل الرابط';
+                    elements.submitButton.disabled = false;
+                    elements.downloadOptions.querySelectorAll('button').forEach(btn => btn.disabled = false);
+                    break;
+                case AppState.IDLE:
+                    elements.formContainer.classList.remove('hidden');
+                    elements.resultsContainer.classList.remove('visible');
+                    elements.buttonText.textContent = 'تحليل الرابط';
+                    elements.videoUrlInput.value = '';
+                    showStatus('', false);
+                    break;
+            }
+        }
+
+        function displayResults(data) {
+            elements.videoThumbnail.src = data.thumbnail || 'https://placehold.co/600x400/1e293b/94a3b8?text=No+Image';
+            elements.videoTitle.textContent = data.title;
+            elements.downloadOptions.innerHTML = '';
+
+            const availableFormats = [
+                { quality: '1080p', format: 'MP4', type: 'video' },
+                { quality: '720p', format: 'MP4', type: 'video' },
+                { quality: 'MP3', format: 'Audio', type: 'audio' }
+            ];
+
+            availableFormats.forEach((format, index) => {
+                const optionEl = document.createElement('button');
+                optionEl.className = 'download-option w-full flex justify-between items-center p-4 bg-slate-800 hover:bg-slate-700 rounded-lg transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed';
+                optionEl.style.animationDelay = `${index * 100}ms`;
+                optionEl.onclick = () => startDownload(format.quality, format.format);
+
+                const icon = format.type === 'video'
+                    ? `<svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 10l4.55a2 2 0 01.95 1.7V17a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h7.55a2 2 0 011.7.95L15 10z" /></svg>`
+                    : `<svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 6l12-3" /></svg>`;
+
+                optionEl.innerHTML = `
+                    <div class="flex items-center gap-4">
+                        ${icon}
+                        <span class="font-semibold text-slate-200">${format.quality} <span class="text-sm text-slate-400">(${format.format})</span></span>
+                    </div>
+                    <div class="download-icon-wrapper p-2 bg-slate-700 rounded-full">
+                       <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+                    </div>
+                `;
+                elements.downloadOptions.appendChild(optionEl);
+            });
+        }
+        
+        function updateProgressUI(status) {
+            elements.progressMessage.textContent = status.message;
+            if (status.progress >= 0) {
+                elements.progressBar.style.width = `${status.progress}%`;
+                elements.progressPercentage.textContent = `${Math.round(status.progress)}%`;
+                elements.progressBar.classList.remove('bg-red-500');
+                elements.progressBar.classList.add('bg-blue-600');
+            }
+            if (status.progress < 0 || currentState === AppState.ERROR) { // Error state
+                elements.progressBar.style.width = `100%`;
+                elements.progressBar.classList.remove('bg-blue-600');
+                elements.progressBar.classList.add('bg-red-500');
+                elements.progressPercentage.textContent = `خطأ`;
+            }
+        }
+        
+        function resetUI() {
+            if (statusInterval) clearInterval(statusInterval);
+            setState(AppState.IDLE);
+        }
+
+        // --- Utility Functions ---
+        async function pasteFromClipboard() {
+            try {
+                const text = await navigator.clipboard.readText();
+                elements.videoUrlInput.value = text;
+                showStatus('تم اللصق بنجاح!', false);
+                setTimeout(() => showStatus('', false), 2000);
+            } catch (err) {
+                showStatus('فشل في قراءة الحافظة. تحقق من أذونات المتصفح.', true);
+            }
+        }
+
+        function showStatus(message, isError) {
+            elements.statusMessage.textContent = message;
+            elements.statusMessage.className = `mt-4 font-semibold h-6 text-center ${isError ? 'text-red-400' : 'text-green-400'}`;
+        }
+
+        function isValidUrl(string) {
+            try { new URL(string); return true; } catch (_) { return false; }
+        }
+    </script>
+</body>
+</html>
