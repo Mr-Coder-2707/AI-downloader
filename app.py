@@ -6,7 +6,7 @@ import time
 from werkzeug.utils import secure_filename
 import sys
 import subprocess
-import requests
+import requests # Add this import
 import uuid
 import shutil
 from mutagen.mp3 import MP3
@@ -16,15 +16,6 @@ from mutagen import File
 import io
 import instaloader
 import re
-import logging
-import traceback
-
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
-logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
 
@@ -41,8 +32,7 @@ download_status = {
     'current_file': None,
     'message': 'Ready to download',
     'title': '',
-    'download_thread': None,
-    'stop_event': threading.Event()
+    'download_thread': None
 }
 
 # Generate a unique ID for the device
@@ -205,28 +195,23 @@ def determine_genre(title, description):
 
 # --- Download Functions ---
 def progress_hook(d):
-    try:
-        if download_status['is_paused'] or download_status['stop_event'].is_set():
-            raise Exception("Download stopped")
-        
-        if d['status'] == 'downloading':
-            total_bytes = d.get('total_bytes') or d.get('total_bytes_estimate')
-            downloaded_bytes = d.get('downloaded_bytes')
-            if total_bytes and downloaded_bytes:
-                percentage = (downloaded_bytes / total_bytes) * 100
-                download_status['progress'] = percentage
-                download_status['message'] = f"Downloading... {percentage:.1f}%"
-        
-        elif d['status'] == 'finished':
-            download_status['progress'] = 100
-            download_status['message'] = "Finalizing..."
-        
-        elif d['status'] == 'error':
-            download_status['message'] = "Error occurred during download"
-            logger.error(f"Download error: {d.get('error', 'Unknown error')}")
-    except Exception as e:
-        logger.error(f"Progress hook error: {str(e)}")
-        raise
+    if download_status['is_paused']:
+        raise Exception("Download paused")
+    
+    if d['status'] == 'downloading':
+        total_bytes = d.get('total_bytes') or d.get('total_bytes_estimate')
+        downloaded_bytes = d.get('downloaded_bytes')
+        if total_bytes and downloaded_bytes:
+            percentage = (downloaded_bytes / total_bytes) * 100
+            download_status['progress'] = percentage
+            download_status['message'] = f"Downloading... {percentage:.1f}%"
+    
+    elif d['status'] == 'finished':
+        download_status['progress'] = 100
+        download_status['message'] = "Finalizing..."
+    
+    elif d['status'] == 'error':
+        download_status['message'] = "Error occurred during download"
 
 def download_video(url, quality, mode, download_folder, platform=None):
     global download_status
@@ -345,37 +330,33 @@ def download_video(url, quality, mode, download_folder, platform=None):
 
     except Exception as e:
         error_message = str(e).splitlines()[0]
-        logger.error(f"Download error: {error_message}")
-        logger.error(traceback.format_exc())
-        
-        if "Download paused" in error_message or "Download stopped" in error_message:
-            download_status['message'] = "Download stopped"
+        if "Download paused" in error_message:
+            download_status['message'] = "Download paused"
         else:
             download_status['message'] = f"Error: {error_message}"
     finally:
         download_status['is_downloading'] = False
-        download_status['stop_event'].clear()
 
 @app.route('/download_thumbnail_proxy')
 def download_thumbnail_proxy():
     thumbnail_url = request.args.get('url')
     if not thumbnail_url:
-        logger.warning("Thumbnail proxy called without URL")
         return "Missing URL parameter", 400
 
     try:
-        response = requests.get(thumbnail_url, stream=True, timeout=30)
-        response.raise_for_status()
+        response = requests.get(thumbnail_url, stream=True)
+        response.raise_for_status() # Raise an exception for bad status codes
 
+        # Get the content type from the original response
         content_type = response.headers.get('content-type', 'image/jpeg')
 
+        # Create a streaming response to send to the client
         return Response(response.iter_content(chunk_size=8192),
                         content_type=content_type,
                         headers={"Content-Disposition": "attachment; filename=thumbnail.jpg"})
 
     except requests.exceptions.RequestException as e:
-        logger.error(f"Thumbnail proxy error: {str(e)}")
-        return jsonify({'error': str(e)}), 500
+        return str(e), 500
 
 # --- Routes ---
 @app.route('/')
@@ -393,21 +374,13 @@ def fetch_title():
         return jsonify({'success': False, 'title': 'Please enter a video URL', 'thumbnail': None})
     
     try:
-        ydl_opts = {
-            'quiet': True,
-            'extract_flat': 'in_playlist',
-            'force_generic_extractor': True,
-            'socket_timeout': 30,
-            'no_warnings': True
-        }
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+        with yt_dlp.YoutubeDL({'quiet': True, 'extract_flat': 'in_playlist', 'force_generic_extractor': True}) as ydl:
             info = ydl.extract_info(url, download=False)
             title = info.get('title', 'No title found')
             thumbnail = info.get('thumbnail', None)
             download_status['title'] = title
             return jsonify({'success': True, 'title': title, 'thumbnail': thumbnail})
     except Exception as e:
-        logger.error(f"Fetch title error: {str(e)}")
         return jsonify({'success': False, 'title': f'Error fetching title: {str(e)}', 'thumbnail': None})
 
 @app.route('/start_download', methods=['POST'])
@@ -566,8 +539,6 @@ def download_instagram_media(url, download_folder):
         }
         
     except Exception as e:
-        logger.error(f"Instagram download error: {str(e)}")
-        logger.error(traceback.format_exc())
         return {'success': False, 'message': f'Error: {str(e)}'}
 
 def extract_instagram_shortcode(url):
@@ -604,22 +575,15 @@ def download_instagram():
     except ValueError as e:
         return jsonify({'success': False, 'message': str(e)})
     
-    # Download in a separate thread with timeout
+    # Download in a separate thread to avoid blocking
     def download_thread():
-        try:
-            result = download_instagram_media(url, download_folder)
-            download_status['instagram_result'] = result
-        except Exception as e:
-            logger.error(f"Instagram download thread error: {str(e)}")
-            download_status['instagram_result'] = {'success': False, 'message': f'Error: {str(e)}'}
+        result = download_instagram_media(url, download_folder)
+        # Store result for the next status check
+        download_status['instagram_result'] = result
     
     thread = threading.Thread(target=download_thread)
     thread.start()
-    thread.join(timeout=60)  # 60 second timeout
-    
-    if thread.is_alive():
-        logger.error("Instagram download timed out")
-        return jsonify({'success': False, 'message': 'Download timeout - please try again'})
+    thread.join()  # Wait for download to complete
     
     result = download_status.get('instagram_result', {'success': False, 'message': 'Unknown error'})
     return jsonify(result)
@@ -714,53 +678,7 @@ def fetch_instagram_info():
     except Exception as e:
         return jsonify({'success': False, 'message': f'Error fetching Instagram info: {str(e)}'})
 
-# --- Error Handlers ---
-@app.errorhandler(Exception)
-def handle_exception(e):
-    """Global exception handler"""
-    logger.error(f"Unhandled exception: {str(e)}")
-    logger.error(traceback.format_exc())
-    return jsonify({
-        'success': False,
-        'error': str(e),
-        'message': 'An internal error occurred. Please try again.'
-    }), 500
-
-@app.errorhandler(500)
-def internal_error(error):
-    logger.error(f"500 error: {str(error)}")
-    return jsonify({
-        'success': False,
-        'message': 'Internal server error'
-    }), 500
-
-# --- Error Handlers ---
-@app.errorhandler(Exception)
-def handle_exception(e):
-    """Global exception handler"""
-    logger.error(f"Unhandled exception: {str(e)}")
-    logger.error(traceback.format_exc())
-    return jsonify({
-        'success': False,
-        'error': str(e),
-        'message': 'An internal error occurred. Please try again.'
-    }), 500
-
-@app.errorhandler(500)
-def internal_error(error):
-    logger.error(f"500 error: {str(error)}")
-    return jsonify({
-        'success': False,
-        'message': 'Internal server error'
-    }), 500
-
 # --- Main ---
 if __name__ == '__main__':
-    try:
-        create_download_folder()
-        logger.info("Starting Flask application on 0.0.0.0:5000")
-        app.run(debug=True, host='0.0.0.0', port=5000)
-    except Exception as e:
-        logger.critical(f"Failed to start application: {str(e)}")
-        logger.critical(traceback.format_exc())
-        sys.exit(1)
+    create_download_folder()
+    app.run(debug=True, host='0.0.0.0', port=5000)
