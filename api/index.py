@@ -29,6 +29,7 @@ app.config['ALLOWED_EXTENSIONS'] = {'mp4', 'mp3', 'webm'}
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB
 
 # --- Global Variables ---
+# Don't initialize these at import time - they will be created on demand
 download_status = {
     'is_paused': False,
     'is_downloading': False,
@@ -39,26 +40,53 @@ download_status = {
     'download_thread': None
 }
 
-# Generate a unique ID for the device
+# Device ID will be generated lazily on first request
+_device_id_cache = None
+
 def get_device_id():
+    """
+    Get or generate device ID - lazy initialization to avoid crashes on import
+    """
+    global _device_id_cache
+    
+    if _device_id_cache:
+        return _device_id_cache
+    
     try:
         device_id_file = os.path.join(app.config['DOWNLOAD_FOLDER'], 'device_id.txt')
-        if not os.path.exists(device_id_file):
-            device_id = str(uuid.uuid4())
+        
+        # Try to create the folder if it doesn't exist
+        try:
+            os.makedirs(os.path.dirname(device_id_file), exist_ok=True)
+        except Exception as e:
+            print(f"Could not create directory: {e}")
+        
+        # Try to read existing device ID
+        if os.path.exists(device_id_file):
             try:
-                os.makedirs(os.path.dirname(device_id_file), exist_ok=True)
-                with open(device_id_file, 'w') as f:
-                    f.write(device_id)
-            except:
-                pass  # If we can't write, just use the generated ID
-        else:
-            with open(device_id_file, 'r') as f:
-                device_id = f.read().strip()
-        return device_id
-    except:
-        return str(uuid.uuid4())
-
-DEVICE_ID = get_device_id()
+                with open(device_id_file, 'r') as f:
+                    _device_id_cache = f.read().strip()
+                    return _device_id_cache
+            except Exception as e:
+                print(f"Could not read device ID: {e}")
+        
+        # Generate new device ID
+        _device_id_cache = str(uuid.uuid4())
+        
+        # Try to save it (but don't fail if we can't)
+        try:
+            with open(device_id_file, 'w') as f:
+                f.write(_device_id_cache)
+        except Exception as e:
+            print(f"Could not save device ID (will use in-memory): {e}")
+        
+        return _device_id_cache
+        
+    except Exception as e:
+        # Last resort: just return a UUID
+        print(f"Error in get_device_id: {e}")
+        _device_id_cache = str(uuid.uuid4())
+        return _device_id_cache
 
 # --- Helper Functions ---
 def get_ffmpeg_location():
@@ -331,14 +359,41 @@ def download_thumbnail_proxy():
     except requests.exceptions.RequestException as e:
         return str(e), 500
 
+# --- Error Handlers ---
+@app.errorhandler(Exception)
+def handle_exception(e):
+    """Global error handler to catch all unhandled exceptions"""
+    print(f"Unhandled exception: {str(e)}")
+    import traceback
+    traceback.print_exc()
+    
+    return jsonify({
+        'success': False,
+        'error': 'Internal server error',
+        'message': str(e)
+    }), 500
+
+@app.errorhandler(404)
+def not_found(e):
+    """Handle 404 errors"""
+    return jsonify({
+        'success': False,
+        'error': 'Not found',
+        'message': 'The requested resource was not found'
+    }), 404
+
 # --- Routes ---
 @app.route('/')
 def index():
-    create_download_folder()
-    return render_template('index.html', 
-                         formats=get_available_formats(),
-                         qualities=get_available_qualities(),
-                         default_folder=app.config['DOWNLOAD_FOLDER'])
+    try:
+        create_download_folder()
+        return render_template('index.html', 
+                             formats=get_available_formats(),
+                             qualities=get_available_qualities(),
+                             default_folder=app.config['DOWNLOAD_FOLDER'])
+    except Exception as e:
+        print(f"Error in index route: {e}")
+        return f"Error loading page: {str(e)}", 500
 
 @app.route('/fetch_title', methods=['POST'])
 def fetch_title():
@@ -454,7 +509,12 @@ def download_file(filename):
 
 @app.route('/get_device_id', methods=['GET'])
 def get_device_id_route():
-    return jsonify({'device_id': DEVICE_ID})
+    try:
+        device_id = get_device_id()
+        return jsonify({'device_id': device_id})
+    except Exception as e:
+        print(f"Error getting device ID: {e}")
+        return jsonify({'device_id': str(uuid.uuid4())})
 
 # --- Instagram Download Functions ---
 def download_instagram_media(url, download_folder):
