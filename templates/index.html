@@ -2,9 +2,32 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Universal Video/Audio Downloader</title>
-    <link rel="icon" href="{{ url_for('static', filename='img/logo.png') }}" type="image/x-icon" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    
+    <!-- SEO & App Metadata -->
+    <title>AI Media Assistant - Intelligent Content Downloader</title>
+    <meta name="description" content="Advanced AI-powered media assistant for intelligent content downloading from any platform. Fast, reliable, and mobile-optimized.">
+    <meta name="keywords" content="AI assistant, media downloader, video downloader, audio downloader, intelligent assistant">
+    
+    <!-- Mobile Web App Metadata -->
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="AI Media Assistant">
+    <meta name="application-name" content="AI Media Assistant">
+    
+    <!-- Theme Colors -->
+    <meta name="theme-color" content="#6366f1">
+    <meta name="msapplication-navbutton-color" content="#6366f1">
+    <meta name="apple-mobile-web-app-status-bar-style" content="#6366f1">
+    
+    <!-- Open Graph -->
+    <meta property="og:image" content="{{ url_for('static', filename='img/dfd.png') }}">
+    
+    <!-- Icons -->
+    <link rel="icon" href="{{ url_for('static', filename='img/dfd.png') }}" type="image/x-icon" />
+    <link rel="apple-touch-icon" href="{{ url_for('static', filename='img/dfd.png') }}">
+    <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
 
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" integrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
@@ -15,6 +38,43 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body>
+    <nav class="navbar navbar-expand-lg navbar-dark fixed-top modern-nav">
+        <div class="container-fluid">
+            <a class="navbar-brand d-flex align-items-center" href="#">
+                <img src="{{ url_for('static', filename='img/dfd.png') }}" alt="AI Assistant Logo" class="navbar-logo">
+                <div class="brand-text">
+                    <span class="brand-main">AI Media Assistant</span>
+                    <span class="brand-sub">Intelligent Content Manager</span>
+                </div>
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item">
+                        <a class="nav-link active" aria-current="page" href="#"><i class="bi bi-house-fill me-1"></i>Home</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#features-card"><i class="bi bi-star-fill me-1"></i>Features</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#supported-sites-card"><i class="bi bi-globe me-1"></i>Platforms</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#history-card"><i class="bi bi-clock-history me-1"></i>History</a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <style>
+        body {
+            padding-top: 56px; /* Adjust for fixed navbar height */
+        }
+    </style>
+
     <div id="loader-overlay">
         <!-- From Uiverse.io by Pradeepsaranbishnoi -->
         <div class="loader">
@@ -26,13 +86,18 @@
     <div class="container">
         <div class="row justify-content-center">
             <div class="col-lg-8 col-md-10">
-                <div class="card-ui">
-                    <div class="card-header">
+                <div class="card-ui modern-card">
+                    <div class="card-header gradient-header">
                         <div class="text-center w-100">
-                            <h1 class="h4 text-white mb-1"><i class="fas fa-download me-2"></i>Universal Downloader</h1>
-                            <p class="text-white-50 mb-0 small">Your universal solution for downloading videos and audio</p>
+                            <div class="ai-badge mb-2">
+                                <i class="bi bi-cpu-fill me-2"></i>AI-Powered
+                            </div>
+                            <h1 class="h3 text-white mb-2 fw-bold">
+                                <span class="gradient-text">Intelligent Media Assistant</span>
+                            </h1>
+                            <p class="text-white-50 mb-0">Experience next-level content management with advanced AI technology</p>
                         </div>
-                        <button class="btn-theme-toggle" id="themeToggle">
+                        <button class="btn-theme-toggle glass-effect" id="themeToggle" title="Toggle theme">
                             <i class="bi bi-moon-fill"></i>
                         </button>
                     </div>
@@ -44,6 +109,9 @@
                                     <button class="btn btn-clear" type="button" id="clearUrlBtn" style="display: none;"><i class="fas fa-times"></i></button>
                                     <button class="btn btn-primary" type="button" id="fetchTitleBtn">
                                         <i class="fas fa-search me-1"></i> Fetch
+                                    </button>
+                                    <button class="btn btn-secondary" type="button" id="clipboardBtn">
+                                        <i class="fa-solid fa-clipboard"></i>
                                     </button>
                                 </div>
                             </div>
@@ -59,6 +127,29 @@
                                     <button class="btn btn-sm btn-outline-primary" id="downloadThumbnailBtn">
                                         <i class="fas fa-image me-1"></i> Download Thumbnail
                                     </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Instagram Media Gallery -->
+                        <div id="instagram-gallery" class="mb-3" style="display: none;">
+                            <div class="card-ui">
+                                <div class="card-header">
+                                    <h3 class="h6 text-white mb-0">
+                                        <i class="fab fa-instagram me-2"></i>Instagram Media
+                                        <span id="mediaCount" class="badge bg-light text-dark ms-2"></span>
+                                    </h3>
+                                </div>
+                                <div class="card-body">
+                                    <div id="mediaGrid" class="instagram-media-grid"></div>
+                                    <div class="mt-3 d-flex gap-2 justify-content-center">
+                                        <button class="btn btn-primary" id="downloadAllMedia">
+                                            <i class="fas fa-download me-1"></i> Download All
+                                        </button>
+                                        <button class="btn btn-success" id="downloadSelectedMedia" style="display: none;">
+                                            <i class="fas fa-check-circle me-1"></i> Download Selected (<span id="selectedCount">0</span>)
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -110,7 +201,7 @@
                         </div>
 
                         <div class="progress mt-3" style="height: 25px; display: none;">
-                            <div class="progress-bar progress-bar-striped progress-bar-animated" id="progressBar" role="progressbar" style="width: 0%;">0%</div>
+                            <div class="progress-bar" id="progressBar" role="progressbar" style="width: 0%; background: linear-gradient(to right, #6a11cb 0%, #2575fc 100%);">0%</div>
                         </div>
                         
                         <div class="d-flex justify-content-center mt-2">
@@ -136,17 +227,175 @@
                         <ul class="list-group list-group-flush" id="downloadHistory"></ul>
                     </div>
                 </div>
+
+                <div class="card-ui modern-card mt-4" id="features-card">
+                    <div class="card-header gradient-header">
+                        <h2 class="h5 text-white text-center mb-0 fw-semibold">
+                            <i class="bi bi-stars me-2"></i> AI-Enhanced Features
+                        </h2>
+                    </div>
+                    <div class="card-body">
+                        <div class="row g-4">
+                            <div class="col-md-6">
+                                <div class="feature-item glass-effect">
+                                    <div class="feature-icon">
+                                        <i class="bi bi-lightning-charge-fill"></i>
+                                    </div>
+                                    <h5 class="feature-title">Lightning Fast</h5>
+                                    <p class="feature-desc">Optimized AI algorithms for maximum download speed</p>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="feature-item glass-effect">
+                                    <div class="feature-icon">
+                                        <i class="bi bi-shield-check"></i>
+                                    </div>
+                                    <h5 class="feature-title">Secure & Private</h5>
+                                    <p class="feature-desc">Your data stays on your device, always</p>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="feature-item glass-effect">
+                                    <div class="feature-icon">
+                                        <i class="bi bi-phone-fill"></i>
+                                    </div>
+                                    <h5 class="feature-title">Mobile Optimized</h5>
+                                    <p class="feature-desc">Perfect experience on smartphones and tablets</p>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="feature-item glass-effect">
+                                    <div class="feature-icon">
+                                        <i class="bi bi-gear-fill"></i>
+                                    </div>
+                                    <h5 class="feature-title">Smart Processing</h5>
+                                    <p class="feature-desc">AI-powered quality optimization for all formats</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card-ui modern-card mt-4" id="supported-sites-card">
+                    <div class="card-header gradient-header">
+                        <h2 class="h5 text-white text-center mb-1 fw-semibold">Universal Platform Support</h2>
+                        <p class="text-white-50 mb-0 small">AI-powered compatibility with all major platforms</p>
+                    </div>
+                    <div class="card-body">
+                        <div class="platforms-grid">
+                          <div class="platform-card glass-effect">
+                              <i class="fab fa-x platform-icon" style="color: #000000;"></i>
+                              <span class="platform-name">Twitter</span>
+                              <div class="platform-status">
+                                  <i class="bi bi-check-circle-fill text-success"></i> Active
+                              </div>
+                          </div>
+                          <div class="platform-card glass-effect">
+                              <i class="fab fa-tiktok platform-icon" style="color: #010101;"></i>
+                              <span class="platform-name">TikTok</span>
+                              <div class="platform-status">
+                                  <i class="bi bi-check-circle-fill text-success"></i> Active
+                              </div>
+                          </div>
+                          <div class="platform-card glass-effect">
+                              <i class="fab fa-instagram platform-icon" style="color: #E4405F;"></i>
+                              <span class="platform-name">Instagram</span>
+                              <div class="platform-status">
+                                  <i class="bi bi-check-circle-fill text-success"></i> Active
+                              </div>
+                          </div>
+                          <div class="platform-card glass-effect">
+                              <i class="fab fa-facebook platform-icon" style="color: #1877F3;"></i>
+                              <span class="platform-name">Facebook</span>
+                              <div class="platform-status">
+                                  <i class="bi bi-check-circle-fill text-success"></i> Active
+                              </div>
+                          </div>
+                          <div class="platform-card glass-effect">
+                              <i class="fab fa-youtube platform-icon" style="color: #FF0000;"></i>
+                              <span class="platform-name">YouTube</span>
+                              <div class="platform-status">
+                                  <i class="bi bi-check-circle-fill text-success"></i> Active
+                              </div>
+                          </div>
+                        </div>
+                        <div class="text-center mt-4">
+                            <p class="text-muted mb-0"><i class="bi bi-plus-circle me-2"></i>And many more platforms supported automatically</p>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
 
-    <footer class="text-center py-4">
-        <p class="mb-0">Developed by <a href="https://linkhub-portfolio.netlify.app/" target="_blank">Mahmoud Sabry Elkhwass</a></p>
-        <small class="text-muted">&copy; 2025 All Rights Reserved.</small>
+    <footer class="modern-footer text-center py-5">
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-logo mb-3">
+                    <i class="bi bi-robot fs-2"></i>
+                </div>
+                <h5 class="fw-bold mb-2">AI Media Assistant</h5>
+                <p class="text-muted mb-3">Next-generation intelligent content manager</p>
+                <div class="social-links mb-3">
+                    <a href="https://linkhub-portfolio.netlify.app/" target="_blank" class="social-link">
+                        <i class="bi bi-globe"></i>
+                    </a>
+                </div>
+                <p class="mb-1">Developed with <i class="bi bi-heart-fill text-danger"></i> by 
+                    <a href="https://linkhub-portfolio.netlify.app/" target="_blank" class="developer-link">Mahmoud Sabry Elkhwass</a>
+                </p>
+                <small class="text-muted d-block mt-2">&copy; 2025 AI Media Assistant. All Rights Reserved.</small>
+            </div>
+        </div>
     </footer>
+
+    <!-- PWA Install Prompt -->
+    <div id="installPrompt" class="install-prompt" style="display: none;">
+        <div class="install-prompt-content">
+            <i class="bi bi-download"></i>
+            <div class="install-prompt-text">
+                <strong>Install App</strong>
+                <span>Add to home screen for quick access</span>
+            </div>
+            <button id="installBtn" class="btn btn-sm btn-light">Install</button>
+            <button id="dismissInstall" class="btn btn-sm btn-link">&times;</button>
+        </div>
+    </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+    
+    <!-- PWA Registration -->
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register("{{ url_for('static', filename='sw.js') }}")
+                    .then(reg => console.log('Service Worker registered'))
+                    .catch(err => console.error('Service Worker registration failed:', err));
+            });
+        }
+        
+        // Install prompt
+        let deferredPrompt;
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredPrompt = e;
+            document.getElementById('installPrompt').style.display = 'block';
+        });
+        
+        document.getElementById('installBtn')?.addEventListener('click', async () => {
+            if (deferredPrompt) {
+                deferredPrompt.prompt();
+                const { outcome } = await deferredPrompt.userChoice;
+                deferredPrompt = null;
+                document.getElementById('installPrompt').style.display = 'none';
+            }
+        });
+        
+        document.getElementById('dismissInstall')?.addEventListener('click', () => {
+            document.getElementById('installPrompt').style.display = 'none';
+        });
+    </script>
 </body>
 </html>
 {% if formats is not defined %}

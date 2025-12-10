@@ -1,0 +1,51 @@
+{
+  "name": "AI Media Assistant - Intelligent Content Manager",
+  "short_name": "AI Media Assistant",
+  "description": "Advanced AI-powered media assistant for intelligent content downloading from any platform. Fast, reliable, and mobile-optimized.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#667eea",
+  "theme_color": "#6366f1",
+  "orientation": "portrait-primary",
+  "scope": "/",
+  "icons": [
+    {
+      "src": "/static/img/dfd.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/static/img/dfd.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["productivity", "utilities", "entertainment"],
+  "screenshots": [],
+  "shortcuts": [
+    {
+      "name": "Quick Download",
+      "short_name": "Download",
+      "description": "Start downloading content immediately",
+      "url": "/?action=download",
+      "icons": [
+        {
+          "src": "/static/img/dfd.png",
+          "sizes": "96x96"
+        }
+      ]
+    }
+  ],
+  "prefer_related_applications": false,
+  "related_applications": [],
+  "share_target": {
+    "action": "/",
+    "method": "GET",
+    "enctype": "application/x-www-form-urlencoded",
+    "params": {
+      "url": "url"
+    }
+  }
+}

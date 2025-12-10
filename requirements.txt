@@ -2,3 +2,5 @@ flask
 yt_dlp
 gunicorn
 requests
+mutagen
+instaloader

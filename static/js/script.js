@@ -21,9 +21,18 @@ document.addEventListener('DOMContentLoaded', function() {
     const videoInfo = document.getElementById('video-info');
     const progressContainer = document.querySelector('.progress');
     const downloadHistory = document.getElementById('downloadHistory');
+    const clipboardBtn = document.getElementById('clipboardBtn');
+    const instagramGallery = document.getElementById('instagram-gallery');
+    const mediaGrid = document.getElementById('mediaGrid');
+    const downloadAllMedia = document.getElementById('downloadAllMedia');
+    const downloadSelectedMedia = document.getElementById('downloadSelectedMedia');
+    const selectedCountSpan = document.getElementById('selectedCount');
+    const mediaCountBadge = document.getElementById('mediaCount');
 
     let currentFile = null;
     let currentThumbnailUrl = null;
+    let instagramMediaItems = [];
+    let selectedMediaIndices = new Set();
 
     // --- Theme Management ---
     function setTheme(theme) {
@@ -56,6 +65,7 @@ document.addEventListener('DOMContentLoaded', function() {
         videoUrl.value = '';
         clearUrlBtn.style.display = 'none';
         hideVideoInfo();
+        hideInstagramGallery();
     });
 
     // --- Drag and Drop ---
@@ -94,6 +104,126 @@ document.addEventListener('DOMContentLoaded', function() {
         videoInfo.style.display = 'none';
     }
 
+    function hideInstagramGallery() {
+        if (instagramGallery) {
+            instagramGallery.style.display = 'none';
+            mediaGrid.innerHTML = '';
+            instagramMediaItems = [];
+            selectedMediaIndices.clear();
+        }
+    }
+
+    function showInstagramGallery(mediaItems) {
+        if (!instagramGallery) return;
+        
+        instagramMediaItems = mediaItems;
+        mediaGrid.innerHTML = '';
+        selectedMediaIndices.clear();
+        
+        mediaCountBadge.textContent = `${mediaItems.length} item${mediaItems.length > 1 ? 's' : ''}`;
+        
+        mediaItems.forEach((media, index) => {
+            const mediaItem = document.createElement('div');
+            mediaItem.className = 'media-item';
+            mediaItem.dataset.index = index;
+            
+            const mediaElement = media.is_video ? 
+                `<video src="${media.url}" muted></video>` :
+                `<img src="${media.url}" alt="Instagram Media ${index + 1}">`;
+            
+            mediaItem.innerHTML = `
+                ${mediaElement}
+                <div class="media-overlay"></div>
+                <span class="media-type-badge ${media.type}">${media.type.toUpperCase()}</span>
+                <input type="checkbox" class="select-checkbox" data-index="${index}">
+                <button class="download-single-btn" data-index="${index}">
+                    <i class="fas fa-download"></i>
+                </button>
+            `;
+            
+            // Toggle selection on click
+            mediaItem.addEventListener('click', (e) => {
+                if (!e.target.classList.contains('download-single-btn') && 
+                    !e.target.classList.contains('select-checkbox') &&
+                    !e.target.closest('.download-single-btn')) {
+                    toggleMediaSelection(index);
+                }
+            });
+            
+            // Checkbox change
+            const checkbox = mediaItem.querySelector('.select-checkbox');
+            checkbox.addEventListener('change', (e) => {
+                e.stopPropagation();
+                toggleMediaSelection(index);
+            });
+            
+            // Single download button
+            const downloadBtn = mediaItem.querySelector('.download-single-btn');
+            downloadBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                downloadSingleMedia(index);
+            });
+            
+            mediaGrid.appendChild(mediaItem);
+        });
+        
+        instagramGallery.style.display = 'block';
+        updateSelectedCount();
+    }
+
+    function toggleMediaSelection(index) {
+        if (selectedMediaIndices.has(index)) {
+            selectedMediaIndices.delete(index);
+        } else {
+            selectedMediaIndices.add(index);
+        }
+        
+        const mediaItem = mediaGrid.querySelector(`[data-index="${index}"]`);
+        const checkbox = mediaItem.querySelector('.select-checkbox');
+        
+        if (selectedMediaIndices.has(index)) {
+            mediaItem.classList.add('selected');
+            checkbox.checked = true;
+        } else {
+            mediaItem.classList.remove('selected');
+            checkbox.checked = false;
+        }
+        
+        updateSelectedCount();
+    }
+
+    function updateSelectedCount() {
+        const count = selectedMediaIndices.size;
+        selectedCountSpan.textContent = count;
+        downloadSelectedMedia.style.display = count > 0 ? 'inline-block' : 'none';
+    }
+
+    function downloadSingleMedia(index) {
+        const media = instagramMediaItems[index];
+        updateStatus(`Downloading ${media.type}...`, 'info');
+        
+        fetch('/download_instagram_single', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: `media_url=${encodeURIComponent(media.url)}&media_type=${media.type}&download_folder=${encodeURIComponent(downloadFolder.value)}`
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                updateStatus(data.message, 'success');
+                addDownloadToHistory(`Instagram ${media.type}`, data.filename);
+            } else {
+                updateStatus(data.message, 'error');
+            }
+        })
+        .catch(error => {
+            updateStatus('Error downloading media', 'error');
+            console.error('Error:', error);
+        });
+    }
+
     function setProgress(percentage) {
         progressContainer.style.display = 'block';
         progressBar.style.width = `${percentage}%`;
@@ -116,7 +246,11 @@ document.addEventListener('DOMContentLoaded', function() {
         fetchTitleBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Fetching...';
         hideVideoInfo();
         
-        fetch('/fetch_title', {
+        // Check if it's an Instagram URL
+        const isInstagram = videoUrl.value.includes('instagram.com');
+        const endpoint = isInstagram ? '/fetch_instagram_info' : '/fetch_title';
+        
+        fetch(endpoint, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/x-www-form-urlencoded',
@@ -128,13 +262,22 @@ document.addEventListener('DOMContentLoaded', function() {
             if (data.success && data.thumbnail) {
                 showVideoInfo(data.title, data.thumbnail);
                 updateStatus('Title fetched successfully', 'success');
+                
+                // Show Instagram gallery if it's a carousel or has multiple media
+                if (isInstagram && data.media_items && data.media_items.length > 0) {
+                    showInstagramGallery(data.media_items);
+                } else {
+                    hideInstagramGallery();
+                }
             } else {
-                updateStatus(data.title || 'Error fetching title', 'error');
+                updateStatus(data.title || data.message || 'Error fetching title', 'error');
+                hideInstagramGallery();
             }
         })
         .catch(error => {
             updateStatus('Error fetching title', 'error');
             console.error('Error:', error);
+            hideInstagramGallery();
         })
         .finally(() => {
             fetchTitleBtn.disabled = false;
@@ -179,35 +322,72 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
         
-        downloadBtn.disabled = true;
-        pauseBtn.disabled = false;
-        showFolderBtn.disabled = true;
-        hideProgress();
+        // Check if it's an Instagram URL
+        const isInstagram = videoUrl.value.includes('instagram.com');
         
-        fetch('/start_download', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/x-www-form-urlencoded',
-            },
-            body: `url=${encodeURIComponent(videoUrl.value)}&quality=${qualitySelect.value}&mode=${formatSelect.value}&download_folder=${encodeURIComponent(downloadFolder.value)}&platform=${platformSelect.value}`
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                updateStatus('Download started', 'info');
-                checkDownloadStatus();
-            } else {
-                updateStatus(data.message, 'error');
+        if (isInstagram) {
+            // Handle Instagram download separately
+            downloadBtn.disabled = true;
+            showFolderBtn.disabled = true;
+            updateStatus('Downloading from Instagram...', 'info');
+            
+            fetch('/download_instagram', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: `url=${encodeURIComponent(videoUrl.value)}&download_folder=${encodeURIComponent(downloadFolder.value)}`
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    updateStatus(data.message, 'success');
+                    showFolderBtn.disabled = false;
+                    if (data.files && data.files.length > 0) {
+                        addDownloadToHistory(data.caption || 'Instagram Post', data.files[0]);
+                    }
+                } else {
+                    updateStatus(data.message, 'error');
+                }
+                downloadBtn.disabled = false;
+            })
+            .catch(error => {
+                updateStatus('Error downloading from Instagram', 'error');
+                console.error('Error:', error);
+                downloadBtn.disabled = false;
+            });
+        } else {
+            // Handle regular download (YouTube, etc.)
+            downloadBtn.disabled = true;
+            pauseBtn.disabled = false;
+            showFolderBtn.disabled = true;
+            hideProgress();
+            
+            fetch('/start_download', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: `url=${encodeURIComponent(videoUrl.value)}&quality=${qualitySelect.value}&mode=${formatSelect.value}&download_folder=${encodeURIComponent(downloadFolder.value)}&platform=${platformSelect.value}`
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    updateStatus('Download started', 'info');
+                    checkDownloadStatus();
+                } else {
+                    updateStatus(data.message, 'error');
+                    downloadBtn.disabled = false;
+                    pauseBtn.disabled = true;
+                }
+            })
+            .catch(error => {
+                updateStatus('Error starting download', 'error');
+                console.error('Error:', error);
                 downloadBtn.disabled = false;
                 pauseBtn.disabled = true;
-            }
-        })
-        .catch(error => {
-            updateStatus('Error starting download', 'error');
-            console.error('Error:', error);
-            downloadBtn.disabled = false;
-            pauseBtn.disabled = true;
-        });
+            });
+        }
     });
 
     pauseBtn.addEventListener('click', function() {
@@ -241,6 +421,109 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     });
+
+    clipboardBtn.addEventListener('click', async () => {
+        try {
+            const text = await navigator.clipboard.readText();
+            videoUrl.value = text;
+            clearUrlBtn.style.display = 'block';
+        } catch (err) {
+            console.error('Failed to read clipboard contents: ', err);
+            alert('Unable to access clipboard. Please check your browser permissions.');
+        }
+    });
+
+    // Instagram Gallery - Download All
+    if (downloadAllMedia) {
+        downloadAllMedia.addEventListener('click', function() {
+            if (instagramMediaItems.length === 0) return;
+            
+            downloadBtn.disabled = true;
+            showFolderBtn.disabled = true;
+            updateStatus('Downloading all media from Instagram...', 'info');
+            
+            fetch('/download_instagram', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: `url=${encodeURIComponent(videoUrl.value)}&download_folder=${encodeURIComponent(downloadFolder.value)}`
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    updateStatus(data.message, 'success');
+                    showFolderBtn.disabled = false;
+                    if (data.files && data.files.length > 0) {
+                        addDownloadToHistory(data.caption || 'Instagram Post', data.files[0]);
+                    }
+                } else {
+                    updateStatus(data.message, 'error');
+                }
+                downloadBtn.disabled = false;
+            })
+            .catch(error => {
+                updateStatus('Error downloading from Instagram', 'error');
+                console.error('Error:', error);
+                downloadBtn.disabled = false;
+            });
+        });
+    }
+
+    // Instagram Gallery - Download Selected
+    if (downloadSelectedMedia) {
+        downloadSelectedMedia.addEventListener('click', function() {
+            if (selectedMediaIndices.size === 0) return;
+            
+            updateStatus(`Downloading ${selectedMediaIndices.size} selected media...`, 'info');
+            
+            let completed = 0;
+            let failed = 0;
+            
+            selectedMediaIndices.forEach(index => {
+                const media = instagramMediaItems[index];
+                
+                fetch('/download_instagram_single', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                    body: `media_url=${encodeURIComponent(media.url)}&media_type=${media.type}&download_folder=${encodeURIComponent(downloadFolder.value)}`
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        completed++;
+                        addDownloadToHistory(`Instagram ${media.type}`, data.filename);
+                    } else {
+                        failed++;
+                    }
+                    
+                    // Update status after all downloads complete
+                    if (completed + failed === selectedMediaIndices.size) {
+                        if (failed === 0) {
+                            updateStatus(`Successfully downloaded ${completed} media files!`, 'success');
+                            showFolderBtn.disabled = false;
+                        } else {
+                            updateStatus(`Downloaded ${completed} files, ${failed} failed`, 'warning');
+                        }
+                        
+                        // Clear selection
+                        selectedMediaIndices.clear();
+                        document.querySelectorAll('.media-item').forEach(item => {
+                            item.classList.remove('selected');
+                            item.querySelector('.select-checkbox').checked = false;
+                        });
+                        updateSelectedCount();
+                    }
+                })
+                .catch(error => {
+                    failed++;
+                    console.error('Error:', error);
+                });
+            });
+        });
+    }
 
     function checkDownloadStatus() {
         fetch('/get_status')
@@ -317,6 +600,16 @@ document.addEventListener('DOMContentLoaded', function() {
 
     formatSelect.addEventListener('change', function() {
         qualitySelect.disabled = formatSelect.value === 'Audio';
+        
+        // Show/hide metadata info for Audio downloads
+        const metadataInfo = document.getElementById('metadata-info');
+        if (metadataInfo) {
+            if (formatSelect.value === 'Audio') {
+                metadataInfo.style.display = 'block';
+            } else {
+                metadataInfo.style.display = 'none';
+            }
+        }
     });
 
     // Hide folder selection on mobile devices
