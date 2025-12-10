@@ -1,0 +1,35 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+ENV/
+
+# Local development
+downloads/
+uploads/
+D:/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Testing
+test_*.py
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Documentation (optional - comment out if you want to deploy docs)
+*.md
+!README.md
+
+# Local app.py (use api/index.py instead)
+app.py

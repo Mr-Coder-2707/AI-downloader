@@ -4,3 +4,4 @@ gunicorn
 requests
 mutagen
 instaloader
+werkzeug
