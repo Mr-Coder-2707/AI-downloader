@@ -1,5 +1,6 @@
 {
   "version": 2,
+  "name": "ai-video-downloader",
   "routes": [
     {
       "src": "/static/(.*)",
